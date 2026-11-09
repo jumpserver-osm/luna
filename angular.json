@@ -1,0 +1,144 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "Luna": {
+      "root": "",
+      "sourceRoot": "src",
+      "projectType": "application",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist",
+            "optimization": false,
+            "progress": true,
+            "statsJson": false,
+            "aot": false,
+            "sourceMap": true,
+            "namedChunks": true,
+            "baseHref": "/luna/",
+            "index": "src/index.html",
+            "browser": "src/main.ts",
+            "polyfills": ["src/polyfills.ts"],
+            "allowedCommonJsDependencies": [
+              "crypto-js",
+              "events",
+              "buffer",
+              "@xterm/xterm",
+              "@xterm/addon-fit",
+              "jquery",
+              "xterm-theme"
+            ],
+            "tsConfig": "src/tsconfig.app.json",
+            "stylePreprocessorOptions": {
+              "includePaths": ["src", "src/sass", "node_modules"]
+            },
+            "preserveSymlinks": true,
+            "assets": [
+              "src/assets",
+              "src/static",
+              "src/favicon.ico",
+              {
+                "glob": "**/*",
+                "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
+                "output": "/assets/"
+              }
+            ],
+            "styles": ["src/sass/ant.less", "src/sass/styles.scss"],
+            "scripts": [
+              "jquery/dist/jquery.min.js",
+              "@ztree/ztree_v3/js/jquery.ztree.all.min.js",
+              "@ztree/ztree_v3/js/jquery.ztree.exhide.min.js"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              },
+              "outputHashing": "all",
+              "baseHref": "/luna/",
+              "outputPath": {
+                "base": "dist",
+                "browser": "luna"
+              },
+              "sourceMap": false,
+              "namedChunks": false,
+              "extractLicenses": true,
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "4mb",
+                  "maximumError": "6mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "200kb",
+                  "maximumError": "300kb"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ]
+            },
+            "hmr": {
+              "optimization": false,
+              "sourceMap": true,
+              "namedChunks": true
+            }
+          }
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "Luna:build",
+            "proxyConfig": "proxy.conf.json",
+            "servePath": "/luna"
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "Luna:build:production"
+            },
+            "hmr": {
+              "buildTarget": "Luna:build:hmr"
+            }
+          }
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n",
+          "options": {
+            "buildTarget": "Luna:build"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+          }
+        }
+      }
+    }
+  },
+  "schematics": {
+    "@schematics/angular:component": {
+      "prefix": "app",
+      "style": "scss"
+    },
+    "@schematics/angular:directive": {
+      "prefix": "app"
+    }
+  },
+  "cli": {
+    "analytics": "b781fa7d-691a-46cd-bb02-23fe8532f7d6"
+  }
+}

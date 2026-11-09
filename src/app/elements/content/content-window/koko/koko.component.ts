@@ -1,0 +1,209 @@
+import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
+import { Account, Asset, ConnectionToken, Endpoint, View } from '@app/model';
+import {
+  ConnectTokenService,
+  HttpService,
+  I18nService,
+  LogService,
+  SettingService
+} from '@app/services';
+import { User } from '@app/globals';
+import { Command, InfoItem } from '../guide/model';
+import { getSitePrefix, joinEndpointUrl, withSitePrefix } from '@app/utils/path';
+
+@Component({
+  standalone: false,
+  selector: 'elements-connector-koko',
+  templateUrl: 'koko.component.html',
+  styleUrls: ['koko.component.scss']
+})
+export class ElementConnectorKokoComponent implements OnInit {
+  @Input() view: View;
+  @ViewChild('terminal', { static: false }) iframe: ElementRef;
+  @ViewChild('iFrame', { static: false }) iframeRef: ElementRef;
+
+  iframeURL: any;
+  asset: Asset;
+  protocol: string;
+  baseUrl: string;
+  token: ConnectionToken;
+
+  infoItems: Array<InfoItem> = [];
+  commands: Array<Command> = [];
+  info: any;
+  account: Account;
+  endpoint: Endpoint;
+  methodName: string;
+  loading = false;
+  showSetReusable = false;
+
+  constructor(
+    private _logger: LogService,
+    private _i18n: I18nService,
+    private _http: HttpService,
+    private _connectTokenSvc: ConnectTokenService,
+    private _settingSvc: SettingService
+  ) {
+    this.showSetReusable = this._settingSvc.globalSetting.CONNECTION_TOKEN_REUSABLE;
+  }
+
+  ngOnInit() {
+    const { asset, account, protocol, smartEndpoint, connectToken } = this.view;
+    this.asset = asset;
+    this.protocol = protocol;
+    this.endpoint = smartEndpoint;
+    this.account = account;
+    this.token = connectToken;
+    const url = smartEndpoint.getUrl();
+    this.baseUrl = url;
+    this.methodName = this.view.connectMethod.value;
+    if (this.methodName === 'ssh_guide') {
+      this.setInfoItems();
+      this.generateCli();
+    } else {
+      this.generateIframeURL();
+    }
+    this.view.termComp = this;
+  }
+
+  async createFileConnectToken(evt) {
+    const iframeWindow = (this.iframeRef as unknown as { iframeWindow: Window }).iframeWindow;
+    const targetURL = this.iframeURL;
+    const targetOrigin = new URL(targetURL, window.location.href).origin;
+    const oldConnectToken = this.view.connectToken;
+    const newConnectToken = await this._connectTokenSvc.exchange(oldConnectToken);
+
+    if (!newConnectToken || this.iframeURL !== targetURL) {
+      return;
+    }
+
+    iframeWindow.postMessage(
+      { name: 'GET_FILE_CONNECT_TOKEN', token: newConnectToken.id },
+      targetOrigin
+    );
+  }
+
+  setInfoItems() {
+    this.infoItems = [
+      {
+        name: 'name',
+        value: `${this.asset.name}(${this.asset.address})`,
+        label: this._i18n.t('Name')
+      },
+      { name: 'host', value: this.endpoint.host, label: this._i18n.t('Host') },
+      { name: 'port', value: this.endpoint.getPort('ssh'), label: this._i18n.t('Port') },
+      { name: 'username', value: `JMS-${this.token.id}`, label: this._i18n.t('Username') },
+      { name: 'password', value: this.token.value, label: this._i18n.t('Password') },
+      { name: 'protocol', value: this.protocol, label: this._i18n.t('Protocol') },
+      {
+        name: 'date_expired',
+        value: `${this.token.date_expired}`,
+        label: this._i18n.t('Expire time')
+      }
+    ];
+    if (this.showSetReusable) {
+      this.infoItems.push({ name: 'set_reusable', value: '', label: this._i18n.t('Set reusable') });
+    }
+    this.info = this.infoItems.reduce((pre, current) => {
+      pre[current.name] = current.value;
+      return pre;
+    }, {});
+  }
+
+  generateCli() {
+    const port = this.endpoint.getPort('ssh');
+    let cli = `ssh JMS-${this.token.id}@${this.endpoint.host}`;
+    let cliDirect = `ssh ${User.username}#${this.account.username}#${this.asset.id}@${this.endpoint.host}`;
+    if (port !== '22') {
+      cli += ` -p ${port}`;
+      cliDirect += ` -p ${port}`;
+    }
+
+    this.commands = [
+      {
+        title:
+          this._i18n.instant('Connect command line') +
+          ' (' +
+          this._i18n.instant('Using token') +
+          ')',
+        value: cli,
+        safeValue: cli,
+        helpText: this._i18n.instant('Password is token password on the table'),
+        callClient: true
+      },
+      {
+        title:
+          this._i18n.instant('Connect command line') + ' (' + this._i18n.instant('Directly') + ')',
+        value: cliDirect,
+        safeValue: cliDirect,
+        helpText: this._i18n.instant('Password is your password login to system'),
+        callClient: true
+      }
+    ];
+  }
+
+  generateIframeURL() {
+    switch (this.view.connectMethod.value) {
+      case 'web_sftp':
+        this.generateFileManagerURL();
+        break;
+      default:
+        this.generateNodeConnectUrl();
+        break;
+    }
+  }
+
+  generateNodeConnectUrl() {
+    const params = new URLSearchParams({
+      token: this.view.connectToken.id,
+      _: Date.now().toString()
+    });
+    const disableautohash = this.view.getConnectOption('disableautohash');
+    const sitePrefix = getSitePrefix();
+
+    if (disableautohash !== undefined && disableautohash !== null) {
+      params.set('disableautohash', String(disableautohash));
+    }
+
+    if (sitePrefix) {
+      params.set('site_prefix', sitePrefix);
+    }
+
+    const query = params.toString();
+    const kokoPath = withSitePrefix(`/koko/connect/?${query}`);
+    const k8sPath = withSitePrefix(`/koko/k8s/?${query}`);
+
+    if (this.protocol === 'k8s') {
+      return (this.iframeURL = joinEndpointUrl(this.baseUrl, k8sPath));
+    }
+
+    this.iframeURL = joinEndpointUrl(this.baseUrl, kokoPath);
+  }
+
+  generateFileManagerURL() {
+    const params = new URLSearchParams({
+      token: this.view.connectToken.id,
+      asset: this.asset.id
+    });
+    const sitePrefix = getSitePrefix();
+
+    if (sitePrefix) {
+      params.set('site_prefix', sitePrefix);
+    }
+
+    const path = `/koko/elfinder/sftp/?${params.toString()}`;
+    this.iframeURL = joinEndpointUrl(this.baseUrl, withSitePrefix(path));
+  }
+
+  async reconnect() {
+    this.loading = true;
+    const oldConnectToken = this.view.connectToken;
+    const newConnectToken = await this._connectTokenSvc.exchange(oldConnectToken);
+    if (!newConnectToken) {
+      return;
+    }
+    this.view.connectToken = newConnectToken;
+    await this.ngOnInit();
+    this.loading = false;
+  }
+}

@@ -1,0 +1,74 @@
+
+
+<div class="player-container" id="player">
+  <div class="display">
+    <div class="seek-overlay" *ngIf="isSeeking">
+      <div class="seek-content">
+        <nz-spin></nz-spin>
+        <p>{{ 'Redirecting' | translate }}...</p>
+        <button class="cancel-btn" (click)="cancelSeek($event)">{{ 'Cancel' | translate }}</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="commands" *ngIf="commands.length > 0" [class.collapsed]="commandsCollapsed">
+        <div class="commands-header">
+          <span>{{ 'HistoryCommands' | translate }} ({{ commands.length }})</span>
+          <button class="toggle-btn" (click)="toggleCommands()" [title]="'Hide' | translate">
+            <i nz-icon nzType="left" nzTheme="outline"></i>
+          </button>
+        </div>
+        <div class="commands-list"
+             infiniteScroll
+             [infiniteScrollDistance]="2"
+             [infiniteScrollThrottle]="50"
+             (scrolled)="onScroll()"
+             [scrollWindow]="false">
+          <div class="command-item"
+               *ngFor="let item of commands; trackBy: trackByCommand"
+               (click)="commandClick(item)"
+               [title]="item.input">
+            <div class="command-text">{{ item.input }}</div>
+            <div class="command-time">{{ item.atime }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 屏幕 -->
+      <div class="screen-wrapper" [class.full]="commands.length === 0" [class.commands-hidden]="commandsCollapsed">
+        <button class="show-commands-btn" (click)="toggleCommands()" [title]="'Show Commands' | translate">
+          <i nz-icon nzType="right" nzTheme="outline"></i>
+          {{ 'Commands' | translate }}
+        </button>
+        <div id="screen" class="screen" (click)="toggle()"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls" [style.pointer-events]="isLoading ? 'none' : 'auto'" [style.opacity]="isLoading ? 0.6 : 1">
+    <div class="controls-left">
+      <button class="control-btn" (click)="toggle()" [disabled]="isLoading">
+        <i nz-icon [nzType]="isPlaying ? 'pause-circle' : 'play-circle'" nzTheme="fill"></i>
+      </button>
+      <button class="control-btn" (click)="restart()" [disabled]="isLoading">
+        <i nz-icon nzType="reload" nzTheme="outline"></i>
+      </button>
+    </div>
+
+    <div class="controls-center" [ngClass]="rangeHideClass">
+      <span class="time">{{ position }} / {{ duration }}</span>
+      <div class="progress">
+        <input type="range"
+               id="position-slider"
+               [(ngModel)]="percent"
+               [max]="max"
+               [disabled]="isLoading || isSeeking"
+               (mouseup)="runFrom()"
+               class="progress-slider">
+      </div>
+    </div>
+
+    <div class="controls-right">
+    </div>
+  </div>
+</div>

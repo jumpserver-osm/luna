@@ -1,0 +1,93 @@
+<div class="replay-container">
+  <!-- 信息栏 -->
+  <div class="info-header" *ngIf="currentVideo">
+    <div class="info-item" *ngIf="replay?.user">
+      <span class="label">{{ 'user' | translate }}:</span>
+      <span class="value">{{ currentVideo?.user }}</span>
+    </div>
+    <div class="info-item" *ngIf="replay?.asset">
+      <span class="label">{{ 'asset' | translate }}:</span>
+      <span class="value">{{ currentVideo?.asset }}</span>
+    </div>
+    <div class="info-item" *ngIf="currentVideo?.system_user">
+      <span class="label">{{ 'system user' | translate }}:</span>
+      <span class="value">{{ currentVideo?.system_user }}</span>
+    </div>
+    <div class="info-item" *ngIf="replay.account">
+      <span class="label">{{ "account" | translate }}:</span>
+      <span class="value">{{ replay.account }}</span>
+    </div>
+    <div class="info-item" *ngIf="currentVideo?.date_start">
+      <span class="label">{{ 'start time' | translate }}:</span>
+      <span class="value">{{ startTime }}</span>
+    </div>
+    <div class="info-actions">
+      <a *ngIf="currentVideo?.download_url" [href]="currentVideo?.download_url" class="download-link">
+        {{ 'Download' | translate }}
+      </a>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <!-- 视频播放区 -->
+    <div class="video-area" [class.playlist-hidden]="playlistCollapsed">
+      <div class="loading-overlay" *ngIf="videoLoading">
+        <nz-spin></nz-spin>
+      </div>
+      <button class="show-playlist-btn" (click)="togglePlaylist()" [title]="'Show Playlist' | translate">
+        <i nz-icon nzType="menu" nzTheme="outline"></i>
+        {{ 'Playlist' | translate }}
+      </button>
+
+      @if(this.replayType === 'mp4') {
+        <elements-replay-mp4 *ngIf="currentVideo && currentVideo.src" (ready)="videoLoading = false" 
+        [replay]="currentVideo" type="parts" class="video-player"></elements-replay-mp4>
+      } @else {
+        <elements-replay-guacamole
+        *ngIf="currentVideo && currentVideo.src"
+        [replay]="currentVideo"
+        (ready)="videoLoading = false"
+        class="video-player">
+      </elements-replay-guacamole>
+      }
+    </div>
+
+    <!-- 播放列表 -->
+    <div class="playlist-area" [class.collapsed]="playlistCollapsed">
+      <div class="playlist-header">
+        <div class="playlist-title">
+          <h3>{{ 'Play List' | translate }}</h3>
+          <span class="count">({{ folders?.length || 0 }})</span>
+        </div>
+        <div class="playlist-actions">
+          <button class="toggle-btn" (click)="togglePlaylist()" [title]="'Hide' | translate">
+            <i nz-icon nzType="right" nzTheme="outline"></i>
+          </button>
+        </div>
+      </div>
+      <div class="playlist-content">
+        <div class="loading-overlay" *ngIf="alertShown">
+          <nz-spin nzSize="default"></nz-spin>
+        </div>
+        <div class="playlist-items" *ngIf="!alertShown">
+          <div class="playlist-item"
+               *ngFor="let folder of folders"
+               [class.active]="currentVideo?.name === folder?.name"
+               (click)="selectPart(folder)"
+               [title]="folder.name">
+            <div class="item-icon">
+              <nz-icon nzType="play-circle" nzTheme="outline" />
+            </div>
+            <div class="item-info">
+              <div class="item-name">{{ folder.name }}</div>
+              <div class="item-meta" *ngIf="folder.updated || folder.size">
+                <span *ngIf="folder.updated">{{ folder.updated }}</span>
+                <span *ngIf="folder.size" class="size">{{ folder.size }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

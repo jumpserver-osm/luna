@@ -1,0 +1,16 @@
+<elements-connector-guide
+  *ngIf="methodName === 'ssh_guide'"
+  [assetType]="('Host' | translate)"
+  [canReuse]="true"
+  [commands]="commands"
+  [infoItems]="infoItems"
+  [token]="token"
+></elements-connector-guide>
+
+<elements-iframe
+  #iFrame *ngIf="iframeURL"
+  [src]="iframeURL"
+  [view]="view"
+  (createFileConnectToken)="createFileConnectToken($event)"
+>
+</elements-iframe>

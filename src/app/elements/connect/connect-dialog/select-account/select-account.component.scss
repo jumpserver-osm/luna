@@ -1,0 +1,46 @@
+.zone-label {
+}
+
+.ant-select {
+  width: 100%;
+}
+
+.manual-auth {
+  margin-bottom: 20px;
+}
+
+.zone-label {
+}
+
+.account-info {
+  border: solid #cbc9c9 1px;
+  padding: 10px 10px 0 10px;
+}
+
+.password {
+  ::ng-deep .ant-input-affix-wrapper {
+    width: 70%;
+  }
+
+  .remember-auth {
+    width: 30%;
+    // display: inline-block;
+    font-size: 12px;
+    vertical-align: bottom;
+    // text-align: right;
+    padding-left: 20px;
+  }
+}
+
+.input-field {
+  width: 100%;
+}
+
+.ad-domain {
+  font-size: 15px;
+  padding-left: 10px;
+}
+
+.not-account {
+  margin-bottom: 10px;
+}

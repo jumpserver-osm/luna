@@ -1,0 +1,205 @@
+<app-face-monitor *ngIf="isAdminConnect"></app-face-monitor>
+<elements-chat></elements-chat>
+
+<ng-template #timerWidget>
+  <div
+    *ngIf="isTimerVisible"
+    class="timer-container"
+    [class.dragging]="isTimerDragging"
+    [ngStyle]="getTimerContainerStyle()"
+    (pointerdown)="onTimerPointerDown($event)"
+    (pointermove)="onTimerPointerMove($event)"
+    (pointerup)="onTimerPointerUp($event)"
+    (pointercancel)="onTimerPointerUp($event)"
+  >
+    <div class="timer">
+      <div [class.active]="isActive" class="status-dot"></div>
+      <span class="time-value">{{ totalConnectTime }}</span>
+      <span
+        class="timer-close"
+        nz-icon
+        nzType="close"
+        nzTheme="outline"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="hideTimer()"
+      ></span>
+    </div>
+  </div>
+</ng-template>
+
+<div #contentWindow *ngIf="isDirect">
+  <div class="terminal-connect" *ngIf="view && isTerminalComponent()">
+    <div *ngIf="isWebSftp()" style="height: 100%; width: 100%">
+      <elements-content-window *ngIf="view" [view]="view"></elements-content-window>
+    </div>
+
+    <div *ngIf="isWebCliOrGui()" style="height: 100%; width: 100%">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-title">
+            <span nz-icon nzType="close" nzTheme="outline" (click)="handleCloseConnect()"></span>
+            <span class="card-title-text">
+              @if (getAssetInfo().protocol === 'k8s') {
+                <!-- 只给 K 进行大写 -->
+                {{ getAssetInfo().protocol.slice(0, 1).toUpperCase() + getAssetInfo().protocol.slice(1) }}
+                {{ _i18n.instant('Session') }}
+              } @else {
+                {{ getAssetInfo().protocol.toUpperCase() }} {{ _i18n.instant('Session') }}
+              }
+            </span>
+          </div>
+          <nz-divider class="divider" nzType="vertical"></nz-divider>
+          <div class="info-section">
+            <span class="top-part">
+              <label> {{ _i18n.instant('asset') }}: </label>
+              <span class="value">
+                {{ getAssetInfo().name }}
+              </span>
+            </span>
+
+            <span class="bottom-part">
+              <div class="desc">
+                <label> {{ _i18n.instant('ConnectionTime') }}: </label>
+                <span class="value">
+                  {{ startTime.toLocaleString() }}
+                </span>
+              </div>
+            </span>
+          </div>
+        </div>
+
+        <!-- <div class="card-header-right">
+          <div class="action-item">
+            <button
+              nz-button
+              nzType="link"
+              (click)="handleOpenDrawer('setting')"
+              *ngIf="!isNoneProtocol()"
+            >
+              <span nz-icon nzType="setting" nzTheme="fill"></span>
+            </button>
+          </div>
+        </div> -->
+      </div>
+      <ng-container *ngTemplateOutlet="timerWidget"></ng-container>
+      <nz-card class="terminal-card" [nzBordered]="false">
+        <div class="card-content" style="height: 100%; overflow: hidden">
+          <elements-content-window #contentWindow *ngIf="view" [view]="view">
+          </elements-content-window>
+        </div>
+      </nz-card>
+    </div>
+  </div>
+
+  <div class="gui" *ngIf="view && isGuiComponent()">
+    <ng-container *ngTemplateOutlet="timerWidget"></ng-container>
+
+    <div class="action-icons" [class.show]="showActionIcons">
+      <div class="close-icon" (click)="handleCloseConnect()">
+        <span nz-icon nzType="close" nzTheme="outline"></span>
+      </div>
+    </div>
+
+    <elements-content-window
+      *ngIf="view"
+      [view]="view"
+      style="height: 100%; width: 100%"
+    ></elements-content-window>
+  </div>
+</div>
+
+<div *ngIf="!isDirect">
+  <div class="windows" *ngIf="!view">
+    <elements-connect
+      (onNewView)="onNewView($event)"
+      [ngStyle]="{ display: 'block' }"
+    ></elements-connect>
+  </div>
+
+  <div #contentWindow *ngIf="view">
+    <app-face-monitor></app-face-monitor>
+
+    <div class="terminal-connect" *ngIf="view && isTerminalComponent()">
+      <div *ngIf="isWebSftp()" style="height: 100%; width: 100%">
+        <elements-content-window *ngIf="view" [view]="view"></elements-content-window>
+      </div>
+
+      <div *ngIf="isWebCliOrGui()" style="height: 100%; width: 100%">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              <span nz-icon nzType="close" nzTheme="outline" (click)="handleCloseConnect()"></span>
+              <span class="card-title-text">
+                @if (getAssetInfo().protocol === 'k8s') {
+                  <!-- 只给 K 进行大写 -->
+                  {{ getAssetInfo().protocol.slice(0, 1).toUpperCase() + getAssetInfo().protocol.slice(1) }}
+                  {{ _i18n.instant('Session') }}
+                } @else {
+                  {{ getAssetInfo().protocol.toUpperCase() }} {{ _i18n.instant('Session') }}
+                }
+              </span>
+            </div>
+            <nz-divider class="divider" nzType="vertical"></nz-divider>
+            <div class="info-section">
+              <span class="top-part">
+                <label> {{ _i18n.instant('asset') }}: </label>
+                <span class="value">
+                  {{ getAssetInfo().name }}
+                </span>
+              </span>
+
+              <span class="bottom-part">
+                <div class="desc">
+                  <label> {{ _i18n.instant('ConnectionTime') }}: </label>
+                  <span class="value">
+                    {{ startTime.toLocaleString() }}
+                  </span>
+                </div>
+              </span>
+            </div>
+          </div>
+
+          <div class="card-header-right">
+            <div class="action-item">
+              <button
+                nz-button
+                nzType="link"
+                (click)="handleOpenDrawer()"
+                *ngIf="!isNoneProtocol()"
+              >
+                <span nz-icon nzType="setting" nzTheme="fill"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <ng-container *ngTemplateOutlet="timerWidget"></ng-container>
+        <nz-card class="terminal-card" [nzBordered]="false">
+          <div class="card-content" style="height: 100%; overflow: hidden">
+            <elements-connect
+              (onNewView)="onNewView($event)"
+              [ngStyle]="{ display: 'none' }"
+            ></elements-connect>
+            <elements-content-window #contentWindow *ngIf="view" [view]="view">
+            </elements-content-window>
+          </div>
+        </nz-card>
+      </div>
+    </div>
+
+    <div class="gui" *ngIf="view && isGuiComponent()">
+      <ng-container *ngTemplateOutlet="timerWidget"></ng-container>
+
+      <div class="action-icons" [class.show]="showActionIcons">
+        <div class="close-icon" (click)="handleCloseConnect()">
+          <span nz-icon nzType="close" nzTheme="outline"></span>
+        </div>
+      </div>
+
+      <elements-content-window
+        *ngIf="view"
+        [view]="view"
+        style="height: 100%; width: 100%"
+      ></elements-content-window>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,72 @@
+.connect-type-group {
+  border: solid #cbc9c9 1px;
+}
+
+.connect-grouped-methods {
+  margin-left: 10px;
+}
+
+.connect-method {
+  padding: 5px 10px 10px;
+}
+
+.connect-method-item {
+  min-width: 80px;
+}
+
+.connect-grouped-title {
+  width: 70px;
+}
+
+/* Tab 布局优化 - 允许溢出操作但防止闪烁 */
+.full-width-tabs ::ng-deep {
+  .ant-tabs-nav {
+    .ant-tabs-nav-wrap {
+      overflow: hidden;
+    }
+
+    .ant-tabs-nav-list {
+      display: flex;
+      width: 99%;
+
+      .ant-tabs-tab {
+        min-width: 100px;
+        flex: 1;
+        padding: 8px 0;
+
+        .ant-tabs-tab-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 12px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+
+          i {
+            margin-right: 8px;
+            flex-shrink: 0;
+          }
+        }
+      }
+    }
+
+    /* 优化溢出操作按钮的显示逻辑 */
+    .ant-tabs-nav-operations {
+      /* 只在真正需要时才显示 */
+      opacity: 1;
+      transition: opacity 0.2s ease;
+
+      /* 当没有溢出时隐藏 */
+      &.ant-tabs-nav-operations-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+    }
+  }
+}
+
+.question {
+  color: #5d5d5d;
+}

@@ -1,0 +1,23 @@
+<div [ngClass]="{'debug': debug}" class="frame-container">
+  <div *ngIf="debug" class="debug-msg">
+    <span style="color: white; padding: 20px">{{ src }}</span>
+  </div>
+
+  <div *ngIf="!showIframe" class="spinner-container">
+    <nz-spin nzSimple></nz-spin>
+  </div>
+
+  <iframe
+    #iFrame
+    [id]="id"
+    [src]="src | safeUrl"
+    [style.visibility]="showIframe ? 'visible' : 'hidden'"
+    allowtransparency="true"
+    allow="clipboard-read; clipboard-write"
+    height="100%"
+    width="100%"
+  >
+  </iframe>
+</div>
+
+
