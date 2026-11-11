@@ -21,19 +21,14 @@
   background: linear-gradient(90deg, #1ab394 0%, #2dd4bf 50%, #1ab394 100%);
   border-radius: 4px;
   position: relative;
-  animation: loading-animation 2s infinite;
+  transition: width 0.2s linear;
 }
 
-@keyframes loading-animation {
-  0% {
-    transform: translateX(-100%);
-    width: 30%;
-  }
-  50% {
-    width: 60%;
-  }
-  100% {
-    transform: translateX(400%);
-    width: 30%;
-  }
+.review-countdown {
+  margin: 12px 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-timeout .loading-bar-progress {
+  background: #ff4d4f;
 }

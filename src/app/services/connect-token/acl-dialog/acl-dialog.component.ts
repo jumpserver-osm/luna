@@ -3,13 +3,15 @@ import {I18nService} from '@app/services/i18n';
 import {HttpService} from '@app/services/http';
 import {FaceService} from '@app/services/face';
 import {HttpErrorResponse} from '@angular/common/http';
-import {Component, Inject, OnInit} from '@angular/core';
+import {Component, Inject, OnDestroy, OnInit} from '@angular/core';
 import {Asset, ConnectData, ConnectionToken} from '@app/model';
 import {NzNotificationService} from 'ng-zorro-antd/notification';
 import {DomSanitizer, SafeResourceUrl} from '@angular/platform-browser';
 import {NZ_MODAL_DATA, NzModalRef, NzModalService} from 'ng-zorro-antd/modal';
 import {ActivatedRoute} from '@angular/router';
 import {withUIBase} from '@app/utils/path';
+import {Subscription} from 'rxjs';
+import {finalize} from 'rxjs/operators';
 
 interface DialogAction {
   text: string;
@@ -31,7 +33,7 @@ interface DialogContent {
   templateUrl: 'acl-dialog.component.html',
   styleUrls: ['acl-dialog.component.scss']
 })
-export class ElementACLDialogComponent implements OnInit {
+export class ElementACLDialogComponent implements OnInit, OnDestroy {
   public asset: Asset;
   public connectInfo: ConnectData;
   public code: string;
@@ -44,7 +46,22 @@ export class ElementACLDialogComponent implements OnInit {
   public tokenID: string;
   public faceVerifyUrl: SafeResourceUrl;
   content: DialogContent;
-  private timerCheckTicket: number;
+  public reviewRemainingSeconds = 0;
+  public reviewProgress = 0;
+  private timerCheckTicket: ReturnType<typeof setInterval>;
+  private timerReviewCountdown: ReturnType<typeof setInterval>;
+  private reviewDeadline = 0;
+  private reviewDuration = 0;
+  private reviewWaiting = false;
+  private closeTicketRequested = false;
+  private destroyed = false;
+  private ticketRequests = new Subscription();
+
+  get reviewRemainingTime(): string {
+    const minutes = Math.floor(this.reviewRemainingSeconds / 60);
+    const seconds = this.reviewRemainingSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }
 
   constructor(
     @Inject(NZ_MODAL_DATA) public data: any,
@@ -91,6 +108,14 @@ export class ElementACLDialogComponent implements OnInit {
     this.tokenID = this.data.tokenID;
     // 控制 token 的行为, 创建还是兑换
     this.tokenAction = this.data.tokenAction;
+  }
+
+  ngOnDestroy() {
+    this.destroyed = true;
+    if (this.reviewWaiting) {
+      this.requestCloseTicket();
+    }
+    this.stopReviewWait();
   }
 
   async onCopySuccess(evt) {
@@ -230,9 +255,14 @@ export class ElementACLDialogComponent implements OnInit {
     const successCallback = (connToken: ConnectionToken) => {
       if (connToken && connToken.from_ticket) {
         this.connectionToken = connToken;
+        // A request may finish after the applicant has dismissed the dialog.
+        if (this.destroyed) {
+          this.requestCloseTicket();
+          return;
+        }
         this.code = 'ticket_review_pending';
-        this.content = this.getDialogContent(this.code); // 重新生成 content
-        this.checkTicket();
+        this.content = this.getDialogContent(this.code);
+        this.startReviewWait();
       }
     };
     const errorCallback = error => {
@@ -260,56 +290,138 @@ export class ElementACLDialogComponent implements OnInit {
     }
   }
 
+  private requestCloseTicket() {
+    if (this.closeTicketRequested || !this.connectionToken?.from_ticket_info) {
+      return;
+    }
+    this.closeTicketRequested = true;
+    const api = this.connectionToken.from_ticket_info.close_ticket_api;
+    this._http[api.method.toLowerCase()](api.url).subscribe();
+  }
+
   onCancelWait() {
-    const closeMethod = this.connectionToken.from_ticket_info.close_ticket_api.method.toLowerCase();
-    const closeURL = this.connectionToken.from_ticket_info.close_ticket_api.url;
-    this._http[closeMethod](closeURL).subscribe();
     this.closeDialog();
   }
 
+  onModalCancel() {
+    this.onCancelWait();
+    // Closing explicitly keeps mask, Escape and button cancellation on the same path.
+    return false;
+  }
+
   closeDialog() {
-    clearInterval(this.timerCheckTicket);
+    if (this.reviewWaiting) {
+      this.requestCloseTicket();
+    }
+    this.destroyed = true;
+    this.stopReviewWait();
     this.dialogRef.close(null);
+  }
+
+  private stopReviewWait() {
+    this.reviewWaiting = false;
+    clearInterval(this.timerCheckTicket);
+    clearInterval(this.timerReviewCountdown);
+    this.ticketRequests.unsubscribe();
+  }
+
+  private startReviewWait() {
+    this.reviewWaiting = true;
+    // expire_time is server-calculated remaining time, not the configured full lifetime.
+    // Use a local deadline so delayed/background ticks do not accumulate drift.
+    const remaining = this.connectionToken.expire_time;
+    const fallback = new Date(this.connectionToken.date_expired).getTime() - Date.now();
+    this.reviewDuration = Math.max(0, Number.isFinite(remaining)
+      ? remaining * 1000
+      : (Number.isFinite(fallback) ? fallback : 0));
+    this.reviewDeadline = Date.now() + this.reviewDuration;
+    this.updateReviewCountdown();
+    if (!this.reviewWaiting) {
+      return;
+    }
+    this.timerReviewCountdown = setInterval(() => this.updateReviewCountdown(), 1000);
+    this.checkTicket();
+  }
+
+  private updateReviewCountdown() {
+    if (!this.reviewWaiting) {
+      return;
+    }
+    const remaining = Math.max(0, this.reviewDeadline - Date.now());
+    this.reviewRemainingSeconds = Math.ceil(remaining / 1000);
+    this.reviewProgress = this.reviewDuration > 0
+      ? Math.min(100, Math.max(0, (1 - remaining / this.reviewDuration) * 100))
+      : 100;
+    if (remaining <= 0) {
+      this.onReviewTimeout();
+    }
+  }
+
+  private onReviewTimeout() {
+    if (!this.reviewWaiting) {
+      return;
+    }
+    this.stopReviewWait();
+    this.requestCloseTicket();
+    this.reviewRemainingSeconds = 0;
+    this.reviewProgress = 100;
+    this.code = 'ticket_review_timeout';
+    this.content = this.getDialogContent(this.code);
   }
 
   checkTicket() {
     const checkMethod = this.connectionToken.from_ticket_info.check_ticket_api.method.toLowerCase();
     const checkURL = this.connectionToken.from_ticket_info.check_ticket_api.url;
     const ticketAssignees = this.connectionToken.from_ticket_info.assignees.join(', ');
+    let checking = false;
 
-    // @ts-ignore
     this.timerCheckTicket = setInterval(() => {
-      this._http[checkMethod](checkURL).subscribe(
+      this.updateReviewCountdown();
+      if (!this.reviewWaiting || checking) {
+        return;
+      }
+      checking = true;
+      this.ticketRequests.add(this._http[checkMethod](checkURL).pipe(
+        finalize(() => checking = false)
+      ).subscribe(
         async ticket => {
+          this.updateReviewCountdown();
+          if (!this.reviewWaiting || this.destroyed) {
+            return;
+          }
           if (ticket.status.value !== 'closed') {
-            // 工单未关闭
             this.ticketAssignees = ticketAssignees;
             this.code = 'ticket_review_pending';
             return;
           }
 
           const state = ticket.state.value;
-
           if (state === 'approved') {
             const msg = await this._i18n.t('Login review approved');
+            this.updateReviewCountdown();
+            if (!this.reviewWaiting || this.destroyed) {
+              return;
+            }
+            this.stopReviewWait();
             this._toastr.success(msg, '', {nzClass: 'custom-success-notification'});
             this.dialogRef.close(this.connectionToken);
-          } else if (state === 'rejected') {
-            this.code = 'ticket_review_rejected';
-            this.content = this.getDialogContent(this.code);
-          } else if (state === 'closed') {
-            this.code = 'ticket_review_closed';
+          } else {
+            this.stopReviewWait();
+            this.code = state === 'rejected' ? 'ticket_review_rejected' : 'ticket_review_closed';
             this.content = this.getDialogContent(this.code);
           }
-          clearInterval(this.timerCheckTicket);
         },
         error => {
+          if (!this.reviewWaiting || this.destroyed) {
+            return;
+          }
           this.code = 'other';
           this.otherError = error.error.detail + `(${checkURL})`;
           this.content = this.getDialogContent(this.code);
+          // Retain the expiry timer even if the existing polling error stops polling.
           clearInterval(this.timerCheckTicket);
         }
-      );
+      ));
     }, 3000);
   }
 
@@ -427,6 +539,17 @@ export class ElementACLDialogComponent implements OnInit {
             callback: () => {
               vm.onCopySuccess(this.connectionToken?.from_ticket_info?.ticket_detail_page_url);
             }
+          }
+        ]
+      },
+      ticket_review_timeout: {
+        title: 'Login reminder',
+        message: 'Asset login review timed out. Please submit a new request.',
+        isError: true,
+        actions: [
+          {
+            text: 'Close',
+            callback: () => vm.closeDialog()
           }
         ]
       },

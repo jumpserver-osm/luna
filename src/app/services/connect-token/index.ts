@@ -16,6 +16,7 @@ export class ConnectTokenService {
       nzContent: ElementACLDialogComponent,
       nzWidth: '450px',
       nzCentered: true,
+      nzOnCancel: component => component.onModalCancel(),
       nzData: {
         ...data
       }

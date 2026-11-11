@@ -25,8 +25,22 @@
             {{ 'Assignees' | translate }}: <b>{{ content.customContent.assignees }}</b> <br /><br />
             {{ 'Do not close this page' | translate }}
             <br /><br />
-            <div class="loading-bar">
-              <div class="loading-bar-progress"></div>
+          </ng-container>
+
+          <ng-container *ngIf="code === 'ticket_review_pending' || code === 'ticket_review_timeout'">
+            <div class="review-countdown">
+              {{ 'Time remaining' | translate }}: {{ reviewRemainingTime }}
+            </div>
+            <div
+              class="loading-bar"
+              [class.review-timeout]="code === 'ticket_review_timeout'"
+              role="progressbar"
+              [attr.aria-label]="'Time remaining' | translate"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-valuenow]="reviewProgress"
+            >
+              <div class="loading-bar-progress" [style.width.%]="reviewProgress"></div>
             </div>
           </ng-container>
         </ng-template>
